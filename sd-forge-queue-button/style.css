@@ -1,0 +1,492 @@
+/* Queue Button for Forge Neo */
+
+/* ---- Row layout: [ Generate ............ ][ Queue ] ------------------------
+ *
+ * The Queue button is pinned to the right edge of the row and the row reserves
+ * room for it with padding, so Generate always fills exactly the remaining
+ * space and nothing can overflow the (narrow) actions column.
+ * Forge's Interrupt / Skip / Interrupting buttons are absolutely positioned
+ * overlays; they are confined to the Generate area with the same numbers.
+ * Everything here is plain CSS: no measuring, nothing that can go stale.
+ */
+
+.generate-box.has-queue {
+    --qb-w: 5.5rem; /* Queue button width (rem: the same size in every element) */
+    --qb-gap: 0.5rem; /* space between Generate and Queue */
+    --qb-gen: calc(100% - var(--qb-w) - var(--qb-gap)); /* Generate area width */
+    position: relative;
+    flex-wrap: nowrap;
+    padding-right: calc(var(--qb-w) + var(--qb-gap));
+}
+
+.generate-box.has-queue button[id$="_generate"] {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* min-width: 0 matters: Gradio gives row children min-width: min(160px, 100%),
+   which would make a half-width overlay spill over the Queue button. */
+.generate-box.has-queue .gradio-button.generate-box-interrupt,
+.generate-box.has-queue .gradio-button.generate-box-interrupting {
+    left: 0;
+    right: auto;
+    width: calc(var(--qb-gen) / 2);
+    min-width: 0;
+}
+
+.generate-box.has-queue .gradio-button.generate-box-skip {
+    left: calc(var(--qb-gen) / 2);
+    right: auto;
+    width: calc(var(--qb-gen) / 2);
+    min-width: 0;
+}
+
+.generate-box.has-queue > .qb-button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--qb-w, 5.5rem);
+    min-width: 0;
+    margin: 0;
+    padding: 0 0.3em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: var(--button-border-width, 1px) solid var(--button-secondary-border-color, #d1d5db);
+    border-radius: var(--button-large-radius, 8px);
+    background: var(--button-secondary-background-fill, #f3f4f6);
+    color: var(--button-secondary-text-color, #1f2937);
+    font-size: var(--button-large-text-size, 16px);
+    font-weight: var(--button-large-text-weight, 600);
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.qb-button:hover {
+    background: var(--button-secondary-background-fill-hover, #e5e7eb);
+}
+
+.qb-button:active {
+    filter: brightness(0.95);
+}
+
+.qb-badge {
+    position: absolute;
+    top: 0.3em;
+    right: 0.3em;
+    min-width: 1.5em;
+    padding: 0 0.4em;
+    border-radius: 999px;
+    background: var(--button-primary-background-fill, #f97316);
+    color: var(--button-primary-text-color, #fff);
+    font-size: 0.75em;
+    line-height: 1.6em;
+    text-align: center;
+}
+
+.qb-badge[hidden] {
+    display: none;
+}
+
+/* ---- Queue list ------------------------------------------------------- */
+
+.qb-panel {
+    margin-top: 0.5em;
+    border: 1px solid var(--block-border-color, #d1d5db);
+    border-radius: var(--block-radius, 8px);
+    background: var(--block-background-fill, transparent);
+    color: var(--body-text-color, inherit);
+    font-size: var(--text-sm, 13px);
+    overflow: hidden;
+}
+
+.qb-panel[hidden] {
+    display: none;
+}
+
+.qb-head,
+.qb-results-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.4em 0.7em;
+    font-weight: 600;
+}
+
+.qb-count {
+    color: var(--body-text-color-subdued, #6b7280);
+    font-weight: 400;
+}
+
+.qb-clear {
+    margin-left: auto;
+    padding: 0.1em 0.7em;
+    border: 1px solid var(--button-secondary-border-color, #d1d5db);
+    border-radius: var(--button-small-radius, 6px);
+    background: transparent;
+    color: inherit;
+    font-size: inherit;
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.qb-clear:hover {
+    background: var(--button-secondary-background-fill-hover, #e5e7eb);
+}
+
+.qb-clear[hidden] {
+    display: none;
+}
+
+.qb-list {
+    margin: 0;
+    padding: 0;
+    max-height: 14em;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.qb-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.35em 0.7em;
+    border-top: 1px solid var(--block-border-color, #d1d5db);
+}
+
+.qb-tag {
+    flex: 0 0 auto;
+    min-width: 4.2em;
+    color: var(--body-text-color-subdued, #6b7280);
+    font-variant-numeric: tabular-nums;
+}
+
+.qb-running .qb-tag {
+    color: var(--color-accent, #f97316);
+    font-weight: 600;
+    animation: qb-pulse 1.4s ease-in-out infinite;
+}
+
+.qb-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qb-meta {
+    flex: 0 0 auto;
+    color: var(--body-text-color-subdued, #6b7280);
+    font-variant-numeric: tabular-nums;
+}
+
+.qb-remove {
+    flex: 0 0 auto;
+    padding: 0 0.3em;
+    border: none;
+    background: transparent;
+    color: var(--body-text-color-subdued, #6b7280);
+    cursor: pointer;
+}
+
+.qb-remove:hover {
+    color: var(--error-text-color, #dc2626);
+}
+
+@keyframes qb-pulse {
+    50% {
+        opacity: 0.45;
+    }
+}
+
+/* ---- Results bar (inside the queue panel) ------------------------------ */
+
+.qb-results {
+    border-top: 1px solid var(--block-border-color, #d1d5db);
+}
+
+.qb-results[hidden] {
+    display: none;
+}
+
+.qb-results-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.15em 0.7em;
+    border: 1px solid var(--button-secondary-border-color, #d1d5db);
+    border-radius: var(--button-small-radius, 6px);
+    background: var(--button-secondary-background-fill, #f3f4f6);
+    color: var(--button-secondary-text-color, inherit);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.qb-results-open:hover {
+    background: var(--button-secondary-background-fill-hover, #e5e7eb);
+}
+
+.qb-results-count {
+    min-width: 1.5em;
+    padding: 0 0.4em;
+    border-radius: 999px;
+    background: var(--body-text-color-subdued, #6b7280);
+    color: var(--background-fill-primary, #fff);
+    font-size: 0.85em;
+    text-align: center;
+}
+
+.qb-results-open.qb-new {
+    border-color: var(--color-accent, #f97316);
+}
+
+.qb-results-open.qb-new .qb-results-count {
+    background: var(--color-accent, #f97316);
+    color: #fff;
+}
+
+.qb-strip {
+    display: flex;
+    gap: 0.35em;
+    padding: 0 0.7em 0.55em;
+    overflow: hidden;
+}
+
+.qb-strip img {
+    flex: 0 0 auto;
+    width: 2.9em;
+    height: 2.9em;
+    border-radius: 5px;
+    object-fit: cover;
+    cursor: pointer;
+    background: var(--background-fill-secondary, #374151);
+}
+
+.qb-strip img:hover {
+    outline: 2px solid var(--color-accent, #f97316);
+}
+
+/* ---- Results viewer (full-page overlay) --------------------------------- */
+
+body.qb-noscroll {
+    overflow: hidden;
+}
+
+.qb-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9990;
+    display: flex;
+    flex-direction: column;
+    background: #080a10;
+    color: #e5e7eb;
+    font-size: 14px;
+}
+
+.qb-overlay[hidden] {
+    display: none;
+}
+
+.qb-ov-head {
+    display: flex;
+    align-items: center;
+    gap: 0.8em;
+    padding: 0.7em 1.1em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.qb-ov-title {
+    font-size: 1.1em;
+}
+
+.qb-ov-sub {
+    flex: 1 1 auto;
+    color: #9ca3af;
+}
+
+.qb-ov-btn {
+    padding: 0.3em 0.9em;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.qb-ov-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.qb-ov-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 0.4em 1.1em 2em;
+}
+
+.qb-group {
+    margin-top: 1.8em;
+}
+
+.qb-group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.8em;
+}
+
+.qb-group-title {
+    font-weight: 600;
+}
+
+.qb-group-meta {
+    color: #9ca3af;
+    font-variant-numeric: tabular-nums;
+}
+
+.qb-group-prompt {
+    margin: 0.2em 0 0.6em;
+    overflow: hidden;
+    color: #9ca3af;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 0.6em;
+}
+
+.qb-cell {
+    display: block;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    background: #111827;
+    overflow: hidden;
+    aspect-ratio: 1;
+    cursor: zoom-in;
+}
+
+.qb-cell:hover {
+    border-color: var(--color-accent, #f97316);
+}
+
+.qb-cell img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.qb-empty {
+    padding: 3em 0;
+    color: #9ca3af;
+    text-align: center;
+}
+
+/* single image view */
+
+.qb-view {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #04050a;
+}
+
+.qb-view[hidden] {
+    display: none;
+}
+
+.qb-view-img {
+    width: calc(100% - 9em);
+    height: calc(100% - 6em);
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+.qb-nav {
+    position: absolute;
+    top: 50%;
+    width: 2.4em;
+    height: 3.2em;
+    transform: translateY(-50%);
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+    font-size: 2em;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.qb-nav:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.qb-prev {
+    left: 1em;
+}
+
+.qb-next {
+    right: 1em;
+}
+
+.qb-view-close {
+    position: absolute;
+    top: 0.8em;
+    right: 1em;
+}
+
+.qb-view-cap {
+    position: absolute;
+    left: 50%;
+    bottom: 1.2em;
+    width: min(90%, 1100px);
+    overflow: hidden;
+    transform: translateX(-50%);
+    color: #9ca3af;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.qb-view-open {
+    position: absolute;
+    left: 1em;
+    top: 0.9em;
+    color: #9ca3af;
+    font-size: 0.9em;
+}
+
+/* ---- Small notices ---------------------------------------------------- */
+
+.qb-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 2em;
+    z-index: 10000;
+    transform: translateX(-50%);
+    padding: 0.6em 1.1em;
+    border-radius: 8px;
+    background: #1f2937;
+    color: #fff;
+    font-size: 14px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    transition: opacity 0.4s;
+}
+
+.qb-toast-click {
+    cursor: pointer;
+    border: 1px solid var(--color-accent, #f97316);
+}
+
+.qb-toast-out {
+    opacity: 0;
+}

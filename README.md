@@ -9,6 +9,7 @@
 | 插件目录名 | 说明 | 来源 / 原作者 |
 | :--- | :--- | :--- |
 | [`sd-forge-anima-camera`](./sd-forge-anima-camera) | Anima Camera Control 镜头控制插件（移植自 ComfyUI BSK_Camera Control 节点） | 灰暗x / ComfyUI-bsk_UI |
+| [`sd-forge-queue-button`](./sd-forge-queue-button) | Queue Button 排队生成与生图结果面板（类似 ComfyUI Queue 机制及多图聚合查看器） | 社区分享 |
 
 ---
 
